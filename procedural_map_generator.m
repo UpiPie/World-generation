@@ -138,41 +138,14 @@ function click_toggle_step(source, event)
 
   % Set togglebutton to purple while running
   set(data.step_btn, 'backgroundcolor', [0.7 0.3 0.7]);
-% --- Buren-telling tonen aan het einde van de 200 generaties ---
-  if data.generation >= 50
-    % Buren tellen van de eindtoestand (5x5 buurt, cel zelf niet meegeteld)
-    neighbour_count = zeros(size(data.world));
-    for stepx = -2:+2
-      for stepy = -2:+2
-        neighbour_count += circshift(data.world, [stepx stepy]);
-      endfor
-      endfor
-      heat_count = zeros(size(data.world));
-    for stepx = -10:+10
-      for stepy = -10:+10
-        heat_count += circshift(data.world, [stepx stepy]);
-      endfor
-    endfor
-    heat_count -= data.world;
 
-    % In een eigen venster tonen als heatmap
-    nb_fig = figure('name', 'Buren-telling (5x5)', 'numbertitle', 'off');
-     heat_count = heat_count./14;
-    imagesc(heat_count, [0 31]);
-
-
-    axis image;
-    axis off;
-    colormap(nb_fig, 'hot');
-    colorbar;
-    title(['Aantal buren na ' int2str(data.generation) ' generaties']);
-  endif
-  % Advance the simulation by 1 step/generation
-  while(get(source, 'Value') == 1) && data.generation < 50
+  % Advance the simulation by 1 step/generation, up to 50 generations
+  while (get(source, 'Value') == 1) && data.generation < 50
 
     % Get shared data
     data = guidata(source);
-    % Count living neighbours explicitly (all 8 directions, no self)
+
+    % Count living neighbours (5x5 area, cell itself not counted)
     neighbors = zeros(size(data.world));
     for stepx = -2:+2
       for stepy = -2:+2
@@ -181,35 +154,78 @@ function click_toggle_step(source, event)
     endfor
     neighbors -= data.world;
 
-    % B5678/S45678 (Vote rule)
-    % Birth: dead cell with 5, 6, 7 or 8 neighbours becomes alive
+    % B5678/S45678 (Vote rule) on the 5x5 neighbourhood
+    % Birth: dead cell with enough living neighbours becomes alive
     birth    = (~data.world) & (neighbors >= 13);
-    % Survival: living cell with 4, 5, 6, 7 or 8 neighbours stays alive
+    % Survival: living cell with enough living neighbours stays alive
     survival =   data.world  & (neighbors >= 12);
     data.world = birth | survival;
     set(data.img, 'cdata', data.world);
+
     % Update generation counter
     data.generation++;
     set(data.generation_lbl, 'string', ['Generation: ' int2str(data.generation)]);
+
     % Store shared data
-    guidata(source, data);
-
-    % Update display
-    set(data.img, 'cdata', data.world);
-
-    % Update sand count (sand is 1 on the array)
-    %sand_count = sum(sum(data.world == 1));
-    %set(data.sand_lbl, 'string', ['Zand: ' int2str(sand_count)]);
-
-    % Update generation counter
-    set(data.generation_lbl, 'string', ['Generation: ' int2str(data.generation)]);
-
-    % Read the delay slider and pause the code based off of it
     guidata(source, data);
     pause(0.001);
   endwhile
-  % Set the buttons color back to the original.
+
+  % Set the button colour back to the original
   set(data.step_btn, 'backgroundcolor', [0.5 0.9 0.5]);
+
+  % --- When the simulation has finished, show the heat spreading out ---
+  if data.generation >= 50
+
+    % Starting heat field: density of living cells.
+    % Count living neighbours in a 21x21 area around each cell.
+    heat = zeros(size(data.world));
+    for stepx = -10:+10
+      for stepy = -10:+10
+        heat += circshift(data.world, [stepx stepy]);
+      endfor
+    endfor
+    heat -= data.world;
+
+    % Scale the field to a 0..31 temperature range (guard against an empty world)
+    heat_max = 31;
+    m = max(heat(:));
+    if m > 0
+      heat = heat_max * heat / m;
+    endif
+
+    % Open a separate window for the heat view
+    nb_fig = figure('name', 'Heat spreading', 'numbertitle', 'off');
+    img = imagesc(heat, [0 heat_max]);
+    axis image;
+    axis off;
+    colormap(nb_fig, 'hot');   % black -> red -> yellow -> white
+    colorbar;
+    title('Heat: step 0');
+
+    % Diffusion settings
+    iterations    = 200;   % more steps = more spreading
+    alpha         = 0.24;   % diffusion strength, must stay <= 0.25 to be stable
+    refresh_every = 6;      % redraw every N steps (lower = smoother, slower)
+
+    % Let the heat spread / average out
+    for step = 1:iterations
+      % Sum of the 4 direct neighbours (edges wrap around via circshift)
+      neighbours = circshift(heat, [ 1  0]) + circshift(heat, [-1  0]) + ...
+                   circshift(heat, [ 0  1]) + circshift(heat, [ 0 -1]);
+
+      % Heat equation: nudge every cell towards its neighbours' average
+      heat = heat + alpha * (neighbours - 4 * heat);
+
+      if mod(step, refresh_every) == 0
+        set(img, 'cdata', heat);
+        title(['Heat: step ' int2str(step)]);
+        drawnow;
+      endif
+    endfor
+
+    title(['Heat: step ' int2str(iterations) ' (done)']);
+  endif
 endfunction
 
 
