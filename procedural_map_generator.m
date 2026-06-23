@@ -3,7 +3,9 @@
 clear all;
 close all;
 
-data.world = false(500, 500);
+sizeY = 500;
+sizeX = 500;
+data.world = false(sizeY, sizeX);
 data.generation = 0;
 data.edit_dlg = true;
 
@@ -21,7 +23,7 @@ data.fig = figure(
 
 data.axs = axes(
   'units', 'pixels',
-  'position', [1 101 1600 800],
+  'position', [1 101 500 500],
   'colormap', [0.2 0.2 0.2; 0.8 0.8 0.8]
 );
 data.reset_btn = uicontrol(
@@ -136,7 +138,26 @@ function click_toggle_step(source, event)
 
   % Set togglebutton to purple while running
   set(data.step_btn, 'backgroundcolor', [0.7 0.3 0.7]);
+% --- Buren-telling tonen aan het einde van de 200 generaties ---
+  if data.generation >= 200
+    % Buren tellen van de eindtoestand (5x5 buurt, cel zelf niet meegeteld)
+    neighbour_count = zeros(size(data.world));
+    for stepx = -2:+2
+      for stepy = -2:+2
+        neighbour_count += circshift(data.world, [stepx stepy]);
+      endfor
+    endfor
+    neighbour_count -= data.world;
 
+    % In een eigen venster tonen als heatmap
+    nb_fig = figure('name', 'Buren-telling (5x5)', 'numbertitle', 'off');
+    imagesc(neighbour_count, [0 24]);
+    axis image;
+    axis off;
+    colormap(nb_fig, 'hot');
+    colorbar;
+    title(['Aantal buren na ' int2str(data.generation) ' generaties']);
+  endif
   % Advance the simulation by 1 step/generation
   while(get(source, 'Value') == 1) && data.generation < 200
 
