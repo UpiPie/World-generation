@@ -1,5 +1,6 @@
 automaton met B5678 / S45678 (world)
-dit gecombineerd met een heatmap met waardes 0-25 ipv 0-1 deze heatmap heeft 4 punten van 0-25 die groeit
+dit gecombineerd met een heatmap met waardes 0-20 (buren en buren van buren) ipv 0-1.
+2de heatmap die begint met 4 punten van 0-24 die groeit
 uit en neemt het gemiddelde zodra het bots met een ander van de punten 
 
 nog een heatmap van de world waarbij het van 0-1 naar 0-25 gaat waarbij water koud is en land warm en dan gemiddelden nemen 
