@@ -138,20 +138,24 @@ function click_toggle_step(source, event)
   set(data.step_btn, 'backgroundcolor', [0.7 0.3 0.7]);
 
   % Advance the simulation by 1 step/generation
-  while(get(source, 'Value') == 1) && data.generation < 50
+  while(get(source, 'Value') == 1) && data.generation < 200
 
     % Get shared data
     data = guidata(source);
     % Count living neighbours explicitly (all 8 directions, no self)
-    w = double(data.world);
-    neighbors = circshift(w, [-1 -1]) + circshift(w, [-1  0]) + circshift(w, [-1 +1]) + ...
-                circshift(w, [ 0 -1]) +                          circshift(w, [ 0 +1]) + ...
-                circshift(w, [+1 -1]) + circshift(w, [+1  0]) + circshift(w, [+1 +1]);
+    neighbors = zeros(size(data.world));
+    for stepx = -2:+2
+      for stepy = -2:+2
+        neighbors += circshift(data.world, [stepx stepy]);
+      endfor
+    endfor
+    neighbors -= data.world;
+
     % B5678/S45678 (Vote rule)
     % Birth: dead cell with 5, 6, 7 or 8 neighbours becomes alive
-    birth    = (~data.world) & (neighbors >= 5);
+    birth    = (~data.world) & (neighbors >= 13);
     % Survival: living cell with 4, 5, 6, 7 or 8 neighbours stays alive
-    survival =   data.world  & (neighbors >= 4);
+    survival =   data.world  & (neighbors >= 12);
     data.world = birth | survival;
     set(data.img, 'cdata', data.world);
     % Update generation counter
@@ -222,4 +226,3 @@ function click_load(source, event)
     guidata(source, data);
   endif
 endfunction
-
