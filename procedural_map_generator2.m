@@ -1,14 +1,19 @@
 % Initialize variables
 
 clear all;
-clc;
 close all;
+clc;
 
-sizeY = 500;
-sizeX = 500;
-data.world = false(sizeY, sizeX);
+data.world = false(500, 500);
 data.generation = 0;
 data.edit_dlg = true;
+data.birth_threshold = 13;
+data.survival_threshold = 12;
+data.density = 0.5;
+data.max_generations = 50;
+data.seed = 123456789;
+data.sizeY = 500;
+data.sizeX = 500;
 
 
 % Create window with various UI elements
@@ -41,7 +46,7 @@ data.reset_btn = uicontrol(
   'position', [21 21 200 60],
   'backgroundcolor', [0.8 0.6 0.5],
   'foregroundcolor', [1.0 1.0 1.0],
-  'string', '♻   reset',
+  'string', 'Reset',
   'fontsize', 24,
   'tooltipstring', 'Reset the world with random living cells',
   'callback', @click_reset
@@ -72,11 +77,11 @@ data.generation_lbl = uicontrol(
 data.save_btn = uicontrol(
   'style', 'pushbutton',
   'units', 'pixels',
-  'position', [1161 21 200 60],
-  'backgroundcolor', [0.8 0.8 0.6],
+  'position', [520 450 250 40],
+  'backgroundcolor', [0.8 0.3 0.2],
   'foregroundcolor', [1.0 1.0 1.0],
-  'string', '📥   save',
-  'fontsize', 24,
+  'string', 'Save',
+  'fontsize', 14,
   'tooltipstring', 'Save the world to a file',
   'callback', @click_save
 );
@@ -84,36 +89,76 @@ data.save_btn = uicontrol(
 data.load_btn = uicontrol(
   'style', 'pushbutton',
   'units', 'pixels',
-  'position', [1381 21 200 60],
-  'backgroundcolor', [0.8 0.8 0.6],
+  'position', [520 400 250 40],
+  'backgroundcolor', [0.7 0.3 0.7],
   'foregroundcolor', [1.0 1.0 1.0],
-  'string', '📤   load',
-  'fontsize', 24,
+  'string', 'Load',
+  'fontsize', 14,
   'tooltipstring', 'Load the world from a file',
   'callback', @click_load
 );
 
-data.img = imagesc(data.axs, zeros(sizeY, sizeX), [0 120]);
+data.settings_btn = uicontrol(
+  'style', 'pushbutton',
+  'units', 'pixels',
+  'position', [460 20 200 60],
+  'backgroundcolor', [0.5 0.7 0.9],
+  'foregroundcolor', [1.0 1.0 1.0],
+  'string', 'Settings',
+  'fontsize', 24,
+  'callback', @click_settings
+);
+
+data.rand_seed_btn = uicontrol(
+  'style', 'pushbutton',
+  'units', 'pixels',
+  'position', [520 500 250 40],
+  'backgroundcolor', [0.9 0.5 0.7],
+  'foregroundcolor', [1.0 1.0 1.0],
+  'string', 'Randomize seed',
+  'fontsize', 14,
+  'callback', @click_random_seed
+);
+
+data.seed_lbl = uicontrol(
+  'style', 'text',
+  'units', 'pixels',
+  'position', [520 550 250 40],
+  'backgroundcolor', [0.3 0.6 0.3],
+  'foregroundcolor', [0.8 1.0 0.8],
+  'string', ['Seed: ' num2str(data.seed)],
+  'fontsize', 14,
+  'fontangle', 'italic'
+);
+
+
+data.img = imagesc(data.axs, zeros(data.sizeY, data.sizeX), [0 120]);
 axis(data.axs, 'off');
 
 % Store shared data
 guidata(data.fig, data);
+
+
+% Define callback functions
 
 function click_reset(source, event)
   data = guidata(source);
 
   set(data.step_btn, 'Value', 0);
 
-  data.world = (rand(size(data.world)) < 0.47);
+  rng(data.seed);
+  data.world = (rand(data.sizeY, data.sizeX) < data.density);
   data.generation = 0;
   set(data.generation_lbl, 'string', 'Generation: 0');
+  set(data.seed_lbl, 'string', ['Seed: ' num2str(data.seed)]);
 
-  % Bereken meteen de neighbors zodat give_colors werkt
+  % Bereken meteen neighbors zodat give_colors werkt
   data.neighbors = conv2(double(data.world), ones(11,11), 'same') - double(data.world);
 
   guidata(source, data);
   give_colors(source, event);
 endfunction
+
 
 function give_colors(source, event)
   data = guidata(source);
@@ -128,33 +173,29 @@ function give_colors(source, event)
   guidata(source, data);
 endfunction
 
-% Run the simulation while the toggle button is pressed
+
 function click_toggle_step(source, event)
   data = guidata(source);
 
-  % Set togglebutton to purple while running
   set(data.step_btn, 'backgroundcolor', [0.7 0.3 0.7]);
 
-  while (get(source, 'Value') == 1) && data.generation < 50
+  while (get(source, 'Value') == 1) && data.generation < data.max_generations
 
     data = guidata(source);
 
     % Met conv2 bereken je de som van alle waarden in het venster van data.world om area
     % met same is de output kaart even groot als de input
     % Count living neighbours for simulation (5x5 area)
-    area = ones(5, 5);
-    neighbors = conv2(double(data.world), area, 'same') - double(data.world);
+    neighbors = conv2(double(data.world), ones(5,5), 'same') - double(data.world);
 
     % Count living neighbours for color (11x11 area)
-    area = ones(11, 11);
-    neighbors_kleur = conv2(double(data.world), area, 'same') - data.world;
-    neighbors_kleur -= data.world;
+    neighbors_kleur = conv2(double(data.world), ones(11,11), 'same') - double(data.world);
 
     data.neighbors = neighbors_kleur;
 
     % Birth/survival rules
-    birth    = (~data.world) & (neighbors >= 13);
-    survival =   data.world  & (neighbors >= 12);
+    birth    = (~data.world) & (neighbors >= data.birth_threshold);
+    survival =   data.world  & (neighbors >= data.survival_threshold);
     data.world = birth | survival;
 
     % Update generation counter
@@ -170,8 +211,46 @@ function click_toggle_step(source, event)
 
   give_colors(source, event);
 
-  % Set the button colour back to the original
   set(data.step_btn, 'backgroundcolor', [0.5 0.9 0.5]);
+endfunction
+
+function click_random_seed(source, event)
+  data = guidata(source);
+  data.seed = randi(2147483647);
+  set(data.seed_lbl, 'string', ['Seed: ' num2str(data.seed)]);
+  guidata(source, data);
+  click_reset(source, event);
+endfunction
+
+
+function click_settings(source, event)
+  data = guidata(source);
+
+  answer = inputdlg(
+    {'Seed (rng):', 'Aantal random land/water (0.45 - 0.55 recommended):', 'Wereld grootte (pixels):', 'Max generaties:', 'Geboorte drempel:', 'Overlevings drempel:'},
+    'Settings',
+    1,
+    {num2str(data.seed), num2str(data.density), num2str(data.sizeX), num2str(data.max_generations), num2str(data.birth_threshold), num2str(data.survival_threshold)}
+  );
+
+  if ~isempty(answer)
+    data.seed               = str2num(answer{1});
+    if data.seed > 2147483647
+      data.seed = 2147483647;
+    endif
+    if data.seed < 0
+      data.seed = 0;
+    endif
+    data.density            = str2num(answer{2});
+    data.sizeX              = str2num(answer{3});
+    data.sizeY              = str2num(answer{3});
+    data.max_generations    = str2num(answer{4});
+    data.birth_threshold    = str2num(answer{5});
+    data.survival_threshold = str2num(answer{6});
+    set(data.seed_lbl, 'string', ['Seed: ' num2str(data.seed)]);
+    guidata(source, data);
+    click_reset(source, event);
+  endif
 endfunction
 
 
@@ -204,12 +283,14 @@ function click_load(source, event)
     elseif endsWith(filename, '.gif') || endsWith(filename, '.bmp') || endsWith(filename, '.png')
       data.world = logical(imread(strcat(filepath, filename)));
     endif
-    set(data.img, 'cdata', zeros(size(data.world)));
+    data.neighbors = conv2(double(data.world), ones(11,11), 'same') - double(data.world);
     data.generation = 0;
     set(data.generation_lbl, 'string', 'Generation: 0');
     guidata(source, data);
+    give_colors(source, event);
   endif
 endfunction
 
-% dit is voor wanneer je het programma aan zet dat er al gelijk een noise grid word gemaakt en gelijk gerund kan worden
+
+% Automatisch reset bij opstarten
 click_reset(data.fig, []);
