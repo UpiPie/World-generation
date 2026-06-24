@@ -1,6 +1,7 @@
 % Initialize variables
 
 clear all;
+clc;
 close all;
 
 sizeY = 500;
@@ -98,28 +99,20 @@ axis(data.axs, 'off');
 % Store shared data
 guidata(data.fig, data);
 
-
-% Define callback functions
-
 function click_reset(source, event)
   data = guidata(source);
 
   set(data.step_btn, 'Value', 0);
 
-  % Update world
   data.world = (rand(size(data.world)) < 0.47);
   data.generation = 0;
-
-  % Clear stale neighbors
-  if isfield(data, 'neighbors')
-    data = rmfield(data, 'neighbors');
-  endif
-
   set(data.generation_lbl, 'string', 'Generation: 0');
-  set(data.img, 'cdata', zeros(size(data.world)));
 
-  % Store shared data
+  % Bereken meteen de neighbors zodat give_colors werkt
+  data.neighbors = conv2(double(data.world), ones(11,11), 'same') - double(data.world);
+
   guidata(source, data);
+  give_colors(source, event);
 endfunction
 
 function give_colors(source, event)
@@ -146,22 +139,15 @@ function click_toggle_step(source, event)
 
     data = guidata(source);
 
+    % Met conv2 bereken je de som van alle waarden in het venster van data.world om area
+    % met same is de output kaart even groot als de input
     % Count living neighbours for simulation (5x5 area)
-    neighbors = zeros(size(data.world));
-    for stepx = -2:+2
-      for stepy = -2:+2
-        neighbors += circshift(data.world, [stepx stepy]);
-      endfor
-    endfor
-    neighbors -= data.world;
+    area = ones(5, 5);
+    neighbors = conv2(double(data.world), area, 'same') - double(data.world);
 
     % Count living neighbours for color (11x11 area)
-    neighbors_kleur = zeros(size(data.world));
-    for stepx = -5:+5
-      for stepy = -5:+5
-        neighbors_kleur += circshift(data.world, [stepx stepy]);
-      endfor
-    endfor
+    area = ones(11, 11);
+    neighbors_kleur = conv2(double(data.world), area, 'same') - data.world;
     neighbors_kleur -= data.world;
 
     data.neighbors = neighbors_kleur;
@@ -179,7 +165,7 @@ function click_toggle_step(source, event)
     guidata(source, data);
     give_colors(source, event);
 
-    pause(0.01);
+    pause(0.001);
   endwhile
 
   give_colors(source, event);
@@ -224,3 +210,6 @@ function click_load(source, event)
     guidata(source, data);
   endif
 endfunction
+
+% dit is voor wanneer je het programma aan zet dat er al gelijk een noise grid word gemaakt en gelijk gerund kan worden
+click_reset(data.fig, []);
