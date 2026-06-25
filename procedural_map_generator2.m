@@ -24,7 +24,7 @@ data.fig = figure(
   'menubar', 'none',
   'resize', 'off',
   'color', [0.03 0.28 0.25],
-  'position', [260 80 800 600]
+  'position', [260 80 1000 600]
 );
 
 data.axs = axes(
@@ -43,7 +43,7 @@ colormap(data.axs, cmap);
 data.reset_btn = uicontrol(
   'style', 'pushbutton',
   'units', 'pixels',
-  'position', [21 21 147 60],
+  'position', [21 21 200 60],
   'backgroundcolor', [0.8 0.6 0.5],
   'foregroundcolor', [1.0 1.0 1.0],
   'string', 'Reset',
@@ -55,7 +55,7 @@ data.reset_btn = uicontrol(
 data.step_btn = uicontrol(
   'style', 'togglebutton',
   'units', 'pixels',
-  'position', [188 20 146 60],
+  'position', [240 20 200 60],
   'backgroundcolor', [0.5 0.9 0.5],
   'string', 'Start',
   'fontsize', 24,
@@ -66,7 +66,7 @@ data.step_btn = uicontrol(
 data.generation_lbl = uicontrol(
   'style', 'text',
   'units', 'pixels',
-  'position', [540 20 220 60],
+  'position', [691 31 220 40],
   'backgroundcolor', [0.5 0.5 0.9],
   'foregroundcolor', [0.8 0.8 1.0],
   'string', 'Generation: 0',
@@ -77,19 +77,29 @@ data.generation_lbl = uicontrol(
 data.save_btn = uicontrol(
   'style', 'pushbutton',
   'units', 'pixels',
-  'position', [540 450 220 40],
-  'backgroundcolor', [225/255, 176/255, 11/255],
+  'position', [520 450 250 40],
+  'backgroundcolor', [0.8 0.3 0.2],
   'foregroundcolor', [1.0 1.0 1.0],
   'string', 'Save',
   'fontsize', 14,
   'tooltipstring', 'Save the world to a file',
   'callback', @click_save
 );
-
+data.biomes_btn = uicontrol(
+  'style', 'pushbutton',
+  'units', 'pixels',
+  'position', [520 350 250 40],
+  'backgroundcolor', [0.8 0.3 0.2],
+  'foregroundcolor', [1.0 1.0 1.0],
+  'string', 'Add biomes',
+  'fontsize', 14,
+  'tooltipstring', 'Save the world to a file',
+  'callback', @click_add_biomes
+);
 data.load_btn = uicontrol(
   'style', 'pushbutton',
   'units', 'pixels',
-  'position', [540 400 220 40],
+  'position', [520 400 250 40],
   'backgroundcolor', [0.7 0.3 0.7],
   'foregroundcolor', [1.0 1.0 1.0],
   'string', 'Load',
@@ -101,7 +111,7 @@ data.load_btn = uicontrol(
 data.settings_btn = uicontrol(
   'style', 'pushbutton',
   'units', 'pixels',
-  'position', [354 20 147 60],
+  'position', [460 20 200 60],
   'backgroundcolor', [0.5 0.7 0.9],
   'foregroundcolor', [1.0 1.0 1.0],
   'string', 'Settings',
@@ -112,7 +122,7 @@ data.settings_btn = uicontrol(
 data.rand_seed_btn = uicontrol(
   'style', 'pushbutton',
   'units', 'pixels',
-  'position', [540 500 220 40],
+  'position', [520 500 250 40],
   'backgroundcolor', [0.9 0.5 0.7],
   'foregroundcolor', [1.0 1.0 1.0],
   'string', 'Randomize seed',
@@ -123,7 +133,7 @@ data.rand_seed_btn = uicontrol(
 data.seed_lbl = uicontrol(
   'style', 'text',
   'units', 'pixels',
-  'position', [540 550 220 40],
+  'position', [520 550 250 40],
   'backgroundcolor', [0.3 0.6 0.3],
   'foregroundcolor', [0.8 1.0 0.8],
   'string', ['Seed: ' num2str(data.seed)],
@@ -176,7 +186,6 @@ function click_toggle_step(source, event)
 
   while (get(source, 'Value') == 1) && data.generation < data.max_generations
 
-    data = guidata(source);
 
     % Met conv2 bereken je de som van alle waarden in het venster van data.world om area
     % met same is de output kaart even groot als de input
@@ -208,6 +217,80 @@ function click_toggle_step(source, event)
 
   set(data.step_btn, 'backgroundcolor', [0.5 0.9 0.5]);
 endfunction
+
+
+function click_add_biomes(source, event)
+  data = guidata(source);
+
+  % --- 1. temperatuur: warm in het midden, koud aan de randen (+ ruis) ---
+  nblob = 8;
+  [XI, YI] = meshgrid(linspace(1,nblob,data.sizeX), linspace(1,nblob,data.sizeY));
+  smudge  = interp2(randn(nblob), XI, YI, 'spline');   % ruislaag 1
+  smudge2 = interp2(randn(nblob), XI, YI, 'spline');   % ruislaag 2
+
+  T = -abs((1:data.sizeY)' - data.sizeY/2) + 60*smudge;   % temperatuur
+  M = smudge2;                                            % vochtigheid
+
+  % --- 2. normaliseer naar 0..1 zodat je met drempels kunt werken ---
+  Tn = (T - min(T(:))) / (max(T(:)) - min(T(:)));
+  Mn = (M - min(M(:))) / (max(M(:)) - min(M(:)));
+
+  % --- 3. kleurtabel: elke rij is een biome-kleur [R G B] ---
+  palette = [ ...
+    0.00 0.05 0.20;   % 1  diep water
+    0.05 0.20 0.50;   % 2  midden water
+    0.30 0.55 0.80;   % 3  ondiep water
+    0.85 0.80 0.45;   % 4  strand / zand
+    0.95 0.96 0.98;   % 5  sneeuw
+    0.65 0.70 0.62;   % 6  toendra    (koud + droog)
+    0.13 0.35 0.22;   % 7  taiga      (koud + nat)
+    0.30 0.62 0.28;   % 8  grasland   (gematigd + droog)
+    0.12 0.45 0.18;   % 9  bos        (gematigd + nat)
+    0.62 0.62 0.28;   % 10 savanne    (heet + droog)
+    0.05 0.40 0.12;   % 11 regenwoud  (heet + nat)
+    0.82 0.72 0.40];  % 12 woestijn   (zeer heet + droog)
+
+  % --- 4. geef elke cel een index in die tabel ---
+  idx = zeros(data.sizeY, data.sizeX);
+
+  % water/strand blijft op basis van "hoogte" (jouw buren-telling)
+  n = data.neighbors;
+  idx(n < 10)            = 1;
+  idx(n >= 10 & n < 34)  = 2;
+  idx(n >= 34 & n < 54)  = 3;
+  idx(n >= 54 & n < 88)  = 4;
+
+  % binnenland -> biome bepaald door temperatuur + vocht
+  inland = n >= 88;
+  dry = Mn < 0.5;   wet = ~dry;
+  cold = inland & Tn <  0.33;
+  temp = inland & Tn >= 0.33 & Tn < 0.66;
+  hot  = inland & Tn >= 0.66;
+
+  idx(cold & dry) = 6;    idx(cold & wet) = 7;
+  idx(temp & dry) = 8;    idx(temp & wet) = 9;
+  idx(hot  & dry) = 10;   idx(hot  & wet) = 11;
+
+  idx(inland & Tn < 0.12)        = 5;    % sneeuw op de koudste plekken
+  idx(inland & Tn > 0.88 & dry)  = 12;   % woestijn op de heetste droge plekken
+
+  % --- 5. index -> echte RGB-afbeelding (HxWx3) en tonen ---
+  idxv = idx(:);
+  R = reshape(palette(idxv,1), data.sizeY, data.sizeX);
+  G = reshape(palette(idxv,2), data.sizeY, data.sizeX);
+  B = reshape(palette(idxv,3), data.sizeY, data.sizeX);
+  rgb = cat(3, R, G, B);
+
+  set(data.img, 'cdata', rgb);
+  axis(data.axs, 'off');
+  guidata(source, data);
+
+endfunction
+
+
+
+
+
 
 function click_random_seed(source, event)
   data = guidata(source);
@@ -286,24 +369,6 @@ function click_load(source, event)
   endif
 endfunction
 
-
-
-data.wiki_btn = uicontrol(
-  'style', 'pushbutton',
-  'units', 'pixels',
-  'position', [540 350 220 40],
-  'backgroundcolor', [176/255, 11/255, 30/255],
-  'foregroundcolor', [1.0 1.0 1.0],
-  'string', 'Our wiki',
-  'fontsize', 14,
-  'tooltipstring', 'Load the world from a file',
-  'callback', @click_wiki
-);
-
-function click_wiki(source, event)
-  data = guidata(source);
-  web("http://langers.nl/wiki/doku.php?id=procedural_world_generation_2026:welkom");
-endfunction
 
 % Automatisch reset bij opstarten
 click_reset(data.fig, []);
