@@ -1,9 +1,12 @@
-% Initialize variables
+% Authers: Alexander, Boas, Oscar
+%Datum: 25-6-2026
+% Met dit programma word van een random grid van 0 en 1 een kaart gemaakt.
 
 clear all;
 close all;
 clc;
 
+% Initializeer de begin settings
 data.world = false(500, 500);
 data.generation = 0;
 data.edit_dlg = true;
@@ -14,36 +17,40 @@ data.max_generations = 50;
 data.seed = 123456789;
 data.sizeY = 500;
 data.sizeX = 500;
-screensize = get(0.0, 'screensize')(3:4)
 
-% Create window with various UI elements
-
+% Maak het venster aan
 data.fig = figure(
   'name', "Procedural world generation",
   'numbertitle', 'off',
   'menubar', 'none',
   'resize', 'off',
   'color', [0.03 0.28 0.25],
-  'position', [(screensize(1)-1000)/2 (screensize(2)-800)/2 1000 800]
+  'position', [260 80 800 600]
 );
 
 data.axs = axes(
   'units', 'pixels',
-  'position', [1 101 700 700]
+  'position', [1 101 500 500]
 );
 
+% Zet de kleuren voor tijdens de simulatie
+% Dit hebben we met een colormap gemaakt van 120 groot zodat je dan kan
+% instellen hoeveel dingen bijvoorbeeld diep water moeten zijn
+% Anders zet octave zelf de schaal neer van 1-24 neighbors voor diep water
+% dan 25-48 voor midden water etc
 cmap = zeros(121, 3);
-cmap(1:9,   :) = repmat([0.00 0.05 0.20], 9, 1);   % 0-4:   diep water
-cmap(10:34,  :) = repmat([0.05 0.20 0.50], 25, 1);   % 5-33:  midden water
+cmap(1:9,   :) = repmat([0.00 0.05 0.20], 9, 1);   % 0-8:   diep water
+cmap(10:34,  :) = repmat([0.05 0.20 0.50], 25, 1);   %9-33:  midden water
 cmap(35:54,  :) = repmat([0.30 0.55 0.80], 20, 1);   % 34-53:  licht water
 cmap(55:88,  :) = repmat([0.85 0.80 0.45], 34, 1);   % 54-87:  zand
 cmap(89:121, :) = repmat([0.15 0.55 0.20], 33, 1);   % 88-120: gras
 colormap(data.axs, cmap);
 
+% Reset knop
 data.reset_btn = uicontrol(
   'style', 'pushbutton',
   'units', 'pixels',
-  'position', [21 20 210 60],
+  'position', [21 21 147 60],
   'backgroundcolor', [0.8 0.6 0.5],
   'foregroundcolor', [1.0 1.0 1.0],
   'string', 'Reset',
@@ -52,10 +59,11 @@ data.reset_btn = uicontrol(
   'callback', @click_reset
 );
 
+% Toggle step knop
 data.step_btn = uicontrol(
   'style', 'togglebutton',
   'units', 'pixels',
-  'position', [255 20 210 60],
+  'position', [188 20 146 60],
   'backgroundcolor', [0.5 0.9 0.5],
   'string', 'Start',
   'fontsize', 24,
@@ -63,10 +71,11 @@ data.step_btn = uicontrol(
   'callback', @click_toggle_step
 );
 
+% Generatie label
 data.generation_lbl = uicontrol(
   'style', 'text',
   'units', 'pixels',
-  'position', [740 20 220 60],
+  'position', [540 20 220 60],
   'backgroundcolor', [0.5 0.5 0.9],
   'foregroundcolor', [0.8 0.8 1.0],
   'string', 'Generation: 0',
@@ -74,10 +83,11 @@ data.generation_lbl = uicontrol(
   'fontangle', 'italic'
 );
 
+% Save knop
 data.save_btn = uicontrol(
   'style', 'pushbutton',
   'units', 'pixels',
-  'position', [740 650 220 40],
+  'position', [540 450 220 40],
   'backgroundcolor', [0.8 0.3 0.2],
   'foregroundcolor', [1.0 1.0 1.0],
   'string', 'Save',
@@ -85,10 +95,12 @@ data.save_btn = uicontrol(
   'tooltipstring', 'Save the world to a file',
   'callback', @click_save
 );
+
+% Biome maak knop
 data.biomes_btn = uicontrol(
   'style', 'pushbutton',
   'units', 'pixels',
-  'position', [740 550 220 40],
+  'position', [540 350 220 40],
   'backgroundcolor', [169/255 71/255 255/255],
   'foregroundcolor', [1.0 1.0 1.0],
   'string', 'Add biomes',
@@ -96,10 +108,12 @@ data.biomes_btn = uicontrol(
   'tooltipstring', 'Save the world to a file',
   'callback', @click_add_biomes
 );
+
+% Load knop
 data.load_btn = uicontrol(
   'style', 'pushbutton',
   'units', 'pixels',
-  'position', [740 600 220 40],
+  'position', [540 400 220 40],
   'backgroundcolor', [0.7 0.3 0.7],
   'foregroundcolor', [1.0 1.0 1.0],
   'string', 'Load',
@@ -108,10 +122,11 @@ data.load_btn = uicontrol(
   'callback', @click_load
 );
 
+% Setting knop
 data.settings_btn = uicontrol(
   'style', 'pushbutton',
   'units', 'pixels',
-  'position', [490 20 210 60],
+  'position', [354 20 147 60],
   'backgroundcolor', [0.5 0.7 0.9],
   'foregroundcolor', [1.0 1.0 1.0],
   'string', 'Settings',
@@ -119,10 +134,11 @@ data.settings_btn = uicontrol(
   'callback', @click_settings
 );
 
+% Maak nieuwe seed aan
 data.rand_seed_btn = uicontrol(
   'style', 'pushbutton',
   'units', 'pixels',
-  'position', [740 700 220 40],
+  'position', [540 500 220 40],
   'backgroundcolor', [0.9 0.5 0.7],
   'foregroundcolor', [1.0 1.0 1.0],
   'string', 'Randomize seed',
@@ -130,10 +146,11 @@ data.rand_seed_btn = uicontrol(
   'callback', @click_random_seed
 );
 
+% Seed label
 data.seed_lbl = uicontrol(
   'style', 'text',
   'units', 'pixels',
-  'position', [740 750 220 40],
+  'position', [540 550 220 40],
   'backgroundcolor', [0.3 0.6 0.3],
   'foregroundcolor', [0.8 1.0 0.8],
   'string', ['Seed: ' num2str(data.seed)],
@@ -141,48 +158,56 @@ data.seed_lbl = uicontrol(
   'fontangle', 'italic'
 );
 
-
+% Hiermee maken we de img aan met de kleurschaal van 0,120 dit is voor de colormap van eerder
 data.img = imagesc(data.axs, zeros(data.sizeY, data.sizeX), [0 120]);
 axis(data.axs, 'off');
 
-% Store shared data
+% Sla shared data op
 guidata(data.fig, data);
 
 
-% Define callback functions
-
+% Callback functies
 function click_reset(source, event)
   data = guidata(source);
 
+  % Stop de toggle knop en zet naar start
   set(data.step_btn, 'Value', 0);
-
+  set(data.step_btn, 'string', 'Start');
+  % Set de RNG naar de seed
   rng(data.seed);
+  % Maak de noise map aan met een density gegeven door de user anders 0.5
   data.world = (rand(data.sizeY, data.sizeX) < data.density);
+  % Set generaties naar nul en hun labels
   data.generation = 0;
   set(data.generation_lbl, 'string', 'Generation: 0');
   set(data.seed_lbl, 'string', ['Seed: ' num2str(data.seed)]);
 
-  % Bereken meteen neighbors zodat give_colors werkt
+  % Bereken meten neighbors zodat give_colors werkt
   data.neighbors = conv2(double(data.world), ones(11,11), 'same') - double(data.world);
 
+  % Save colors en zet de kleuren
   guidata(source, data);
   give_colors(source, event);
 endfunction
 
 
 function give_colors(source, event)
+  % Deze functie zet de kleuren van de kaart
   data = guidata(source);
+  % de colormap heeft hij al doordat we heb aan data.axs hebben gevoegt.
   set(data.img, 'cdata', data.neighbors);
   axis(data.axs, 'off');
-
   guidata(source, data);
 endfunction
 
-
+% Set de toggle knop
 function click_toggle_step(source, event)
   data = guidata(source);
 
-  set(data.step_btn, 'backgroundcolor', [0.7 0.3 0.7]);
+  % kleur van de toggle knop veranderen om activiteit te zien
+  set(data.step_btn, 'backgroundcolor', [1.0 0.0 0.0]);
+  set(data.step_btn, 'string', 'Stop');
+  drawnow;
 
   while (get(source, 'Value') == 1) && data.generation < data.max_generations
 
@@ -192,12 +217,12 @@ function click_toggle_step(source, event)
     % Count living neighbours for simulation (5x5 area)
     neighbors = conv2(double(data.world), ones(5,5), 'same') - double(data.world);
 
-    % Count living neighbours for color (11x11 area)
+    % Tell levende cellen om kleuren te geven, (area 11x11)
     neighbors_kleur = conv2(double(data.world), ones(11,11), 'same') - double(data.world);
 
     data.neighbors = neighbors_kleur;
 
-    % Birth/survival rules
+    % Birth en survival regels toepassen
     birth    = (~data.world) & (neighbors >= data.birth_threshold);
     survival =   data.world  & (neighbors >= data.survival_threshold);
     data.world = birth | survival;
@@ -206,16 +231,17 @@ function click_toggle_step(source, event)
     data.generation++;
     set(data.generation_lbl, 'string', ['Generation: ' int2str(data.generation)]);
 
-    % Store shared data then apply colors
+    % Schrijf data op en set kleuren
     guidata(source, data);
     give_colors(source, event);
 
     pause(0.001);
   endwhile
-
+  % Zet kleuren en knop om naar start
   give_colors(source, event);
-
   set(data.step_btn, 'backgroundcolor', [0.5 0.9 0.5]);
+  set(data.step_btn, 'string', 'Start');
+  set(data.step_btn, 'Value', 0);
 endfunction
 
 
@@ -287,23 +313,22 @@ function click_add_biomes(source, event)
 
 endfunction
 
-
-
-
-
-
+% De random seed knop maakt een random seed aan van 1 tot 2147483647
 function click_random_seed(source, event)
   data = guidata(source);
+
+  % maakt seed
   data.seed = randi(2147483647);
   set(data.seed_lbl, 'string', ['Seed: ' num2str(data.seed)]);
   guidata(source, data);
   click_reset(source, event);
 endfunction
 
-
+% Hiermee kan de gebruiker de settings invulen die ze willen
 function click_settings(source, event)
   data = guidata(source);
 
+  % Input vraag
   answer = inputdlg(
     {'Seed (rng):', 'Aantal random land/water (0.45 - 0.55 hoger = meer land):', 'Wereld grootte (pixels):', 'Max generaties:', 'Geboorte drempel:', 'Overlevings drempel:'},
     'Settings',
@@ -331,7 +356,7 @@ function click_settings(source, event)
   endif
 endfunction
 
-
+% Save knop
 function click_save(source, event)
   data = guidata(source);
   [filename, filepath] = uiputfile(
@@ -348,7 +373,7 @@ function click_save(source, event)
   endif
 endfunction
 
-
+% Load knop
 function click_load(source, event)
   [filename, filepath] = uigetfile(
     {"*.csv;*.txt", "Text file"; "*.gif;*.bmp;*.png", "Image file"},
@@ -369,11 +394,11 @@ function click_load(source, event)
   endif
 endfunction
 
-
+% Knop voor de wiki
 data.wiki_btn = uicontrol(
   'style', 'pushbutton',
   'units', 'pixels',
-  'position', [740 500 220 40],
+  'position', [540 300 220 40],
   'backgroundcolor', [176/255, 11/255, 30/255],
   'foregroundcolor', [1.0 1.0 1.0],
   'string', 'Our wiki',
@@ -382,10 +407,11 @@ data.wiki_btn = uicontrol(
   'callback', @click_wiki
 );
 
+% Redirect voor de wiki
 function click_wiki(source, event)
   data = guidata(source);
   web("http://langers.nl/wiki/doku.php?id=procedural_world_generation_2026:welkom");
 endfunction
 
-% Automatisch reset bij opstarten
+% Automatisch reseten van veld wanneer het programma word opgestart
 click_reset(data.fig, []);
