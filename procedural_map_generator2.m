@@ -24,7 +24,7 @@ data.fig = figure(
   'menubar', 'none',
   'resize', 'off',
   'color', [0.03 0.28 0.25],
-  'position', [260 80 1000 600]
+  'position', [260 80 800 600]
 );
 
 data.axs = axes(
@@ -43,7 +43,7 @@ colormap(data.axs, cmap);
 data.reset_btn = uicontrol(
   'style', 'pushbutton',
   'units', 'pixels',
-  'position', [21 21 200 60],
+  'position', [21 21 147 60],
   'backgroundcolor', [0.8 0.6 0.5],
   'foregroundcolor', [1.0 1.0 1.0],
   'string', 'Reset',
@@ -55,7 +55,7 @@ data.reset_btn = uicontrol(
 data.step_btn = uicontrol(
   'style', 'togglebutton',
   'units', 'pixels',
-  'position', [240 20 200 60],
+  'position', [188 20 146 60],
   'backgroundcolor', [0.5 0.9 0.5],
   'string', 'Start',
   'fontsize', 24,
@@ -66,7 +66,7 @@ data.step_btn = uicontrol(
 data.generation_lbl = uicontrol(
   'style', 'text',
   'units', 'pixels',
-  'position', [691 31 220 40],
+  'position', [540 20 220 60],
   'backgroundcolor', [0.5 0.5 0.9],
   'foregroundcolor', [0.8 0.8 1.0],
   'string', 'Generation: 0',
@@ -77,7 +77,7 @@ data.generation_lbl = uicontrol(
 data.save_btn = uicontrol(
   'style', 'pushbutton',
   'units', 'pixels',
-  'position', [520 450 250 40],
+  'position', [540 450 220 40],
   'backgroundcolor', [0.8 0.3 0.2],
   'foregroundcolor', [1.0 1.0 1.0],
   'string', 'Save',
@@ -88,8 +88,8 @@ data.save_btn = uicontrol(
 data.biomes_btn = uicontrol(
   'style', 'pushbutton',
   'units', 'pixels',
-  'position', [520 350 250 40],
-  'backgroundcolor', [0.8 0.3 0.2],
+  'position', [540 350 220 40],
+  'backgroundcolor', [169/255 71/255 255/255],
   'foregroundcolor', [1.0 1.0 1.0],
   'string', 'Add biomes',
   'fontsize', 14,
@@ -99,7 +99,7 @@ data.biomes_btn = uicontrol(
 data.load_btn = uicontrol(
   'style', 'pushbutton',
   'units', 'pixels',
-  'position', [520 400 250 40],
+  'position', [540 400 220 40],
   'backgroundcolor', [0.7 0.3 0.7],
   'foregroundcolor', [1.0 1.0 1.0],
   'string', 'Load',
@@ -111,7 +111,7 @@ data.load_btn = uicontrol(
 data.settings_btn = uicontrol(
   'style', 'pushbutton',
   'units', 'pixels',
-  'position', [460 20 200 60],
+  'position', [354 20 147 60],
   'backgroundcolor', [0.5 0.7 0.9],
   'foregroundcolor', [1.0 1.0 1.0],
   'string', 'Settings',
@@ -122,7 +122,7 @@ data.settings_btn = uicontrol(
 data.rand_seed_btn = uicontrol(
   'style', 'pushbutton',
   'units', 'pixels',
-  'position', [520 500 250 40],
+  'position', [540 500 220 40],
   'backgroundcolor', [0.9 0.5 0.7],
   'foregroundcolor', [1.0 1.0 1.0],
   'string', 'Randomize seed',
@@ -133,7 +133,7 @@ data.rand_seed_btn = uicontrol(
 data.seed_lbl = uicontrol(
   'style', 'text',
   'units', 'pixels',
-  'position', [520 550 250 40],
+  'position', [540 550 220 40],
   'backgroundcolor', [0.3 0.6 0.3],
   'foregroundcolor', [0.8 1.0 0.8],
   'string', ['Seed: ' num2str(data.seed)],
@@ -369,6 +369,23 @@ function click_load(source, event)
   endif
 endfunction
 
+
+data.wiki_btn = uicontrol(
+  'style', 'pushbutton',
+  'units', 'pixels',
+  'position', [540 300 220 40],
+  'backgroundcolor', [176/255, 11/255, 30/255],
+  'foregroundcolor', [1.0 1.0 1.0],
+  'string', 'Our wiki',
+  'fontsize', 14,
+  'tooltipstring', 'Load the world from a file',
+  'callback', @click_wiki
+);
+
+function click_wiki(source, event)
+  data = guidata(source);
+  web("http://langers.nl/wiki/doku.php?id=procedural_world_generation_2026:welkom");
+endfunction
 
 % Automatisch reset bij opstarten
 click_reset(data.fig, []);
