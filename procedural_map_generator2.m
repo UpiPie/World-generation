@@ -19,7 +19,7 @@ data.sizeX = 500;
 % Create window with various UI elements
 
 data.fig = figure(
-  'name', "Falling sand game",
+  'name', "Procedural world generation",
   'numbertitle', 'off',
   'menubar', 'none',
   'resize', 'off',
@@ -33,8 +33,8 @@ data.axs = axes(
 );
 
 cmap = zeros(121, 3);
-cmap(1:14,   :) = repmat([0.00 0.05 0.20], 14, 1);   % 0-13:   diep water
-cmap(15:34,  :) = repmat([0.05 0.20 0.50], 20, 1);   % 14-33:  midden water
+cmap(1:9,   :) = repmat([0.00 0.05 0.20], 9, 1);   % 0-4:   diep water
+cmap(10:34,  :) = repmat([0.05 0.20 0.50], 25, 1);   % 5-33:  midden water
 cmap(35:54,  :) = repmat([0.30 0.55 0.80], 20, 1);   % 34-53:  licht water
 cmap(55:88,  :) = repmat([0.85 0.80 0.45], 34, 1);   % 54-87:  zand
 cmap(89:121, :) = repmat([0.15 0.55 0.20], 33, 1);   % 88-120: gras
@@ -162,11 +162,6 @@ endfunction
 
 function give_colors(source, event)
   data = guidata(source);
-
-  if ~isfield(data, 'neighbors')
-    return;
-  endif
-
   set(data.img, 'cdata', data.neighbors);
   axis(data.axs, 'off');
 
@@ -227,7 +222,7 @@ function click_settings(source, event)
   data = guidata(source);
 
   answer = inputdlg(
-    {'Seed (rng):', 'Aantal random land/water (0.45 - 0.55 recommended):', 'Wereld grootte (pixels):', 'Max generaties:', 'Geboorte drempel:', 'Overlevings drempel:'},
+    {'Seed (rng):', 'Aantal random land/water (0.45 - 0.55 hoger = meer land):', 'Wereld grootte (pixels):', 'Max generaties:', 'Geboorte drempel:', 'Overlevings drempel:'},
     'Settings',
     1,
     {num2str(data.seed), num2str(data.density), num2str(data.sizeX), num2str(data.max_generations), num2str(data.birth_threshold), num2str(data.survival_threshold)}
