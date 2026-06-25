@@ -249,20 +249,43 @@ endfunction
 function click_add_biomes(source, event)
   data = guidata(source);
 
-  % --- 1. temperatuur: warm in het midden, koud aan de randen (+ ruis) ---
-  nblob = 8;
-  [XI, YI] = meshgrid(linspace(1,nblob,data.sizeX), linspace(1,nblob,data.sizeY));
-  smudge  = interp2(randn(nblob), XI, YI, 'spline');   % ruislaag 1
-  smudge2 = interp2(randn(nblob), XI, YI, 'spline');   % ruislaag 2
+  nblob = 8;   % grofheid van de ruis: 8x8 willekeurige punten die
+               % we straks uitsmeren over het hele raster.
+               % Kleiner = grovere vlekken, groter = fijnere ruis.
 
-  T = -abs((1:data.sizeY)' - data.sizeY/2) + 60*smudge;   % temperatuur
-  M = smudge2;                                            % vochtigheid
+  % Maak sample-coordinaten die het kleine nblob x nblob grid
+  % uitrekken tot de volledige rasterafmeting. XI/YI lopen van
+  % 1..nblob, maar met sizeX resp. sizeY tussenstappen.
+  [XI, YI] = meshgrid(linspace(1, nblob, data.sizeX), ...
+                      linspace(1, nblob, data.sizeY));
 
-  % --- 2. normaliseer naar 0..1 zodat je met drempels kunt werken ---
-  Tn = (T - min(T(:))) / (max(T(:)) - min(T(:)));
-  Mn = (M - min(M(:))) / (max(M(:)) - min(M(:)));
+  % randn(nblob) = 8x8 matrix met willekeurige getallen.
+  % interp2(..., 'spline') interpoleert die vloeiend op tot de
 
-  % --- 3. kleurtabel: elke rij is een biome-kleur [R G B] ---
+  % Twee aparte trekkingen: 1 voor temperatuur, 1 voor vocht.
+  smudge  = interp2(randn(nblob), XI, YI, 'spline');   % ruislaag 1 (temp)
+  smudge2 = interp2(randn(nblob), XI, YI, 'spline');   % ruislaag 2 (vocht)
+
+  % Basistemperatuur: -abs(rij - middenrij) is 0 in het midden en
+  % wordt steeds negatiever richting de randen  (1:sizeY)' is een KOLOMvector, dus deze gradient hangt
+  % alleen af van de rij (Y)
+  T = -abs((1:data.sizeY)' - data.sizeY/2) + 60*smudge;
+
+  % Vochtigheid is simpelweg de tweede ruislaag: puur willekeurig
+  % verdeeld en losgekoppeld van de temperatuur.
+  M = smudge2;
+
+  %    Zo kun je met vaste drempels (0.33, 0.5, 0.66, ...) werken
+  %    ongeacht de absolute waarden van T en M.
+  %    De (:) maakt er even 1 lange kolom van, zodat min/max over
+  %    de HELE matrix gaan en niet per kolom.
+
+  Tn = (T - min(T(:))) / (max(T(:)) - min(T(:)));   % temp  0..1
+  Mn = (M - min(M(:))) / (max(M(:)) - min(M(:)));   % vocht 0..1
+
+  %    12 rijen, elke rij is 1 biome-kleur als [R G B] in 0..1.
+  %    De rij-NUMMERS (1 t/m 12) gebruiken we straks als index.
+
   palette = [ ...
     0.00 0.05 0.20;   % 1  diep water
     0.05 0.20 0.50;   % 2  midden water
@@ -277,52 +300,59 @@ function click_add_biomes(source, event)
     0.05 0.40 0.12;   % 11 regenwoud  (heet + nat)
     0.82 0.72 0.40];  % 12 woestijn   (zeer heet + droog)
 
-  % --- 4. geef elke cel een index in die tabel ---
-  idx = zeros(data.sizeY, data.sizeX);
+  %    idx wordt een matrix even groot als het raster, met in elke
+  %    cel een getal 1..12 dat verwijst naar een rij in 'palette'.
 
-  % water/strand blijft op basis van "hoogte" (jouw buren-telling)
+  idx = zeros(data.sizeY, data.sizeX);   % start: alles op 0
+
+  % Weinig buren = laag = water; veel buren = hoog = land.
+  % De grenzen 10/34/54/88 bepalen waar de waterlijnen liggen.
   n = data.neighbors;
-  idx(n < 10)            = 1;
-  idx(n >= 10 & n < 34)  = 2;
-  idx(n >= 34 & n < 54)  = 3;
-  idx(n >= 54 & n < 88)  = 4;
+  idx(n < 10)            = 1;   % heel laag  -> diep water
+  idx(n >= 10 & n < 34)  = 2;   % laag       -> midden water
+  idx(n >= 34 & n < 54)  = 3;   % iets hoger -> ondiep water
+  idx(n >= 54 & n < 88)  = 4;   % kustlijn   -> strand / zand
+  inland = n >= 88;             % alles vanaf 88 buren is land
 
-  % binnenland -> biome bepaald door temperatuur + vocht
-  inland = n >= 88;
+  % Vocht in twee klassen: droog vs nat (grens op 0.5).
   dry = Mn < 0.5;   wet = ~dry;
+
+  % 'inland &' zit er telkens bij, zodat water niet per
+  % ongeluk meegekleurd wordt.
   cold = inland & Tn <  0.33;
   temp = inland & Tn >= 0.33 & Tn < 0.66;
   hot  = inland & Tn >= 0.66;
 
+  % Combineer temp-band x vochtklasse -> 6 land-biomes.
   idx(cold & dry) = 6;    idx(cold & wet) = 7;
   idx(temp & dry) = 8;    idx(temp & wet) = 9;
   idx(hot  & dry) = 10;   idx(hot  & wet) = 11;
 
-  idx(inland & Tn < 0.12)        = 5;    % sneeuw op de koudste plekken
-  idx(inland & Tn > 0.88 & dry)  = 12;   % woestijn op de heetste droge plekken
+  idx(inland & Tn < 0.12)        = 5;    % sneeuw op de koudste cellen
+  idx(inland & Tn > 0.88 & dry)  = 12;   % woestijn op de heetste droge cellen
 
-  % --- 5. index -> echte RGB-afbeelding (HxWx3) en tonen ---
-  idxv = idx(:);
-  R = reshape(palette(idxv,1), data.sizeY, data.sizeX);
-  G = reshape(palette(idxv,2), data.sizeY, data.sizeX);
-  B = reshape(palette(idxv,3), data.sizeY, data.sizeX);
+  %    We zoeken per cel de kleur op in 'palette' en bouwen een
+  %    HxWx3 afbeelding (aparte R-, G- en B-laag).
+
+  idxv = idx(:);   % maak er 1 lange kolomvector van (HxW elementen)
+
+  % palette(idxv, 1) pakt voor elke cel de R-waarde uit de tabel;
+  % reshape stopt dat resultaat terug in de rastervorm.
+  R = reshape(palette(idxv, 1), data.sizeY, data.sizeX);
+  G = reshape(palette(idxv, 2), data.sizeY, data.sizeX);
+  B = reshape(palette(idxv, 3), data.sizeY, data.sizeX);
+
+  % cat(3, ...) stapelt de drie lagen tot 1 kleurafbeelding (HxWx3).
   rgb = cat(3, R, G, B);
 
+  % Zet de nieuwe pixels in het bestaande image-object en verberg
+  % de assen voor een schone weergave.
   set(data.img, 'cdata', rgb);
   axis(data.axs, 'off');
+
+  % Sla de (eventueel gewijzigde) state weer op, zodat andere
+  % callbacks dezelfde data te zien krijgen.
   guidata(source, data);
-
-endfunction
-
-% De random seed knop maakt een random seed aan van 1 tot 2147483647
-function click_random_seed(source, event)
-  data = guidata(source);
-
-  % maakt seed
-  data.seed = randi(2147483647);
-  set(data.seed_lbl, 'string', ['Seed: ' num2str(data.seed)]);
-  guidata(source, data);
-  click_reset(source, event);
 endfunction
 
 % Hiermee kan de gebruiker de settings invulen die ze willen
