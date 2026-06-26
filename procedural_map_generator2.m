@@ -245,6 +245,15 @@ function click_toggle_step(source, event)
   set(data.step_btn, 'Value', 0);
 endfunction
 
+%random seed aanmaken
+function click_random_seed(source, event)
+  data = guidata(source);
+  data.seed = randi(2147483647);
+  set(data.seed_lbl, 'string', ['Seed: ' num2str(data.seed)]);
+  guidata(source, data);
+  click_reset(source, event);
+  endfunction
+
 
 function click_add_biomes(source, event)
   data = guidata(source);
